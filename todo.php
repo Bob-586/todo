@@ -325,7 +325,7 @@ if ($action === "ls") {
             $row_host = ($host) ? "@" . $row['host_name'] . "->" : "";
             $ymd = explode(" ", $row['date_stamp']);
             $time = ($full) ? $row['date_stamp'] : $ymd[0];
-            echo "[{$row['id']}] {$done}({$time})-{$row_user}{$row_host}{$item}" . PHP_EOL;
+            echo "[{$row['id']}]{$time}({$done})-{$row_user}{$row_host}{$item}" . PHP_EOL;
         }
     } catch (\PDOException $e) {
         echo $e->getMessage();
