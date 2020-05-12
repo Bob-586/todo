@@ -161,6 +161,14 @@ if ($action === "help") {
     exit(0);
 }
 
+function get_pwd() {
+    if(strncasecmp(PHP_OS, 'WIN', 3) === 0) {
+       return stream_get_line(STDIN, 1024, PHP_EOL); 
+    } else {
+       return rtrim( shell_exec("/bin/bash -c 'read -s PW; echo \$PW'") );
+    }
+}
+
 try {
     require 'crypto.php';
     $c = new \todo\encryption\crypto();
@@ -171,7 +179,7 @@ try {
     $count = $pdostmt->fetch(PDO::FETCH_COLUMN);
     if (intval($count) == 0) {
        echo "Create a password: ";
-       $pwd = rtrim( shell_exec("/bin/bash -c 'read -s PW; echo \$PW'") );
+       $pwd = get_pwd();
        if (empty($pwd)) {
          $sql = "INSERT INTO password (myhash, mykey) VALUES ('none', '')";
          $pdostmt = $pdo->prepare($sql);
@@ -201,7 +209,7 @@ try {
         } else {
             $do_encode = true;
             echo "Enter password: ";
-            $pwd = rtrim( shell_exec("/bin/bash -c 'read -s PW; echo \$PW'") );
+            $pwd = get_pwd();
             if (! password_verify($pwd, $myhash)) {
                 echo "Invalid Password!" . PHP_EOL;
                 exit(1);
