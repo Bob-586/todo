@@ -256,6 +256,12 @@ if ($action === "ls") {
         }
     }
     if ($limiter === true) {
+        $p = settype($page, "integer");
+        $l = settype($limit_no, "integer");
+        if ($p === false || $l === false) {
+            echo "Invalid page# or limit#";
+            exit(1);
+        }
         $limit = " LIMIT " . ( ( $page - 1 ) * $limit_no ) . ", $limit_no";
     }
     try {
