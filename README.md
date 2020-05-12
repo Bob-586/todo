@@ -1,13 +1,13 @@
 # todo
 PHP CLI - Linux Server - To Do - Lists
 
-## Purpose: To encrypt things left, to do, on a Linux Server.
+#### Purpose: To encrypt things left, to do, on a Linux Server.
 
-* Each user, has their own password protected, to do, items! *
+** Each user, has their own password protected, to do, items! **
 
-apt-get install php7.4-cli php7.4-sqlite3
+$ apt-get install php7.4-cli php7.4-sqlite3
 
-ln -s todo.php /usr/local/bin/todo
+$ ln -s todo.php /usr/local/bin/todo
 
 Useage: todo help
 
