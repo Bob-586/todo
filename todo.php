@@ -95,7 +95,10 @@ try {
     $sql = "CREATE TABLE IF NOT EXISTS items (
             id   INTEGER PRIMARY KEY AUTOINCREMENT,
             item  TEXT    NOT NULL,
-            nonce TEXT    NULL,    
+            nonce TEXT    NULL,
+            host_name  TEXT  NULL,
+            user       TEXT NULL,
+            date_stamp TEXT NULL,
             completed INTEGER
       );";
     $pdo->query($sql);
@@ -137,7 +140,7 @@ function get_id($id) {
 }
 
 switch(strtolower($command)) {
-   case "help": case "?": case "-?": case "-help": $action = "help"; break; 
+   case "help": case "?": case "-?": case "--help": case "-help": $action = "help"; break; 
    case "add": case "new":
        $action = "add";
        $item = $A;
@@ -257,8 +260,23 @@ if ($action === "ls") {
     $orderby = " ORDER BY id ASC";
     $limiter = false;
     $limit = "";
+    $select = "";
+    $full = false;
+    $user = false;
+    $host = false;
     for($i = 1; $i < $argc; $i++) {
         $opt = strtolower($argv[$i]);
+        if ($opt === "-user") {
+            $user = true;
+            $select .= ", user";
+        }
+        if ($opt === "-host") {
+            $host = true;
+            $select .= ", host_name";
+        }
+        if ($opt === "-time") {
+            $full = true;
+        }
         if ($opt === "-done" || $opt === "-complete") {
             $where = " WHERE completed='1' ";
         }
@@ -287,7 +305,7 @@ if ($action === "ls") {
         $limit = " LIMIT " . ( ( $page - 1 ) * $limit_no ) . ", $limit_no";
     }
     try {
-        $sql = "SELECT id, item, nonce, completed FROM items {$where}{$orderby}{$limit}";
+        $sql = "SELECT id, item, nonce, completed, date_stamp{$select} FROM items {$where}{$orderby}{$limit}";
         $pdostmt = $pdo->prepare($sql);
         if ($pdostmt === false) {
            echo "INVALID Schema!";
@@ -303,7 +321,11 @@ if ($action === "ls") {
             } else {
                 $item = $row['item'];
             }
-            echo "[{$row['id']}] {$done} - $item" . PHP_EOL;
+            $row_user = ($user) ? $row['user'] : "";
+            $row_host = ($host) ? "@" . $row['host_name'] . "->" : "";
+            $ymd = explode(" ", $row['date_stamp']);
+            $time = ($full) ? $row['date_stamp'] : $ymd[0];
+            echo "[{$row['id']}] {$done}({$time})-{$row_user}{$row_host}{$item}" . PHP_EOL;
         }
     } catch (\PDOException $e) {
         echo $e->getMessage();
@@ -314,7 +336,7 @@ if ($action === "ls") {
 
 if ($action === "add") {
     try {
-        $sql = "INSERT INTO items (item, nonce, completed) VALUES (:item, :nonce, :completed)";
+        $sql = "INSERT INTO items (item, nonce, host_name, user, date_stamp, completed) VALUES (:item, :nonce, :host, :user, :ds, :completed)";
         $pdostmt = $pdo->prepare($sql);
         if (! $pdostmt === false) {
             if ($do_encode) {
@@ -324,7 +346,14 @@ if ($action === "add") {
                 $nonce = "";
                 $enc_item = $item;
             }
-            $pdostmt->execute(["item"=>$enc_item, "nonce"=>$nonce, "completed"=>$status]);
+            $host = gethostname();
+            if (function_exists('exec')) {
+                $user = exec("whoami");
+            } else {
+                $user = "unknown";
+            }
+            $ds = gmdate("Y/m/d H:i");
+            $pdostmt->execute(["item"=>$enc_item, "nonce"=>$nonce, "host"=>$host, "user"=>$user, "ds"=>$ds, "completed"=>$status]);
         }
     } catch (\Exception $ex) {
         echo $ex->getMessage();
@@ -353,7 +382,7 @@ if ($action === "rm") {
 
 if ($action === "update") {
     try {
-        $sql = "UPDATE items SET item=:item, nonce=:nonce WHERE id=:id LIMIT 1";
+        $sql = "UPDATE items SET item=:item, nonce=:nonce, user=:user, date_stamp=:ds WHERE id=:id LIMIT 1";
         $pdostmt = $pdo->prepare($sql);
         if (! $pdostmt === false) {
             if ($do_encode) {
@@ -363,7 +392,13 @@ if ($action === "update") {
                 $nonce = "";
                 $enc_item = $item;
             }
-            $pdostmt->execute(["item"=>$enc_item, "nonce"=>$nonce, "id"=>$id]);
+            if (function_exists('exec')) {
+                $user = exec("whoami");
+            } else {
+                $user = "unknown";
+            }
+            $ds = gmdate("Y/m/d H:i");
+            $pdostmt->execute(["item"=>$enc_item, "nonce"=>$nonce, "user"=>$user, "ds"=>$ds, "id"=>$id]);
         }
     } catch (\PDOException $e) {
         echo $e->getMessage();
@@ -374,10 +409,11 @@ if ($action === "update") {
 
 if ($action === "complete") {
     try {
-        $sql = "UPDATE items SET completed='1' WHERE id=:id LIMIT 1";
+        $sql = "UPDATE items SET completed='1', date_stamp=:ds WHERE id=:id LIMIT 1";
         $pdostmt = $pdo->prepare($sql);
         if (! $pdostmt === false) {
-            $pdostmt->execute(["id"=>$id]);
+            $ds = gmdate("Y/m/d H:i");
+            $pdostmt->execute(["ds"=>$ds, "id"=>$id]);
         }
     } catch (\PDOException $e) {
         echo $e->getMessage();
@@ -388,10 +424,11 @@ if ($action === "complete") {
 
 if ($action === "incomplete") {
     try {
-        $sql = "UPDATE items SET completed='0' WHERE id=:id LIMIT 1";
+        $sql = "UPDATE items SET completed='0', date_stamp=:ds WHERE id=:id LIMIT 1";
         $pdostmt = $pdo->prepare($sql);
         if (! $pdostmt === false) {
-            $pdostmt->execute(["id"=>$id]);
+            $ds = gmdate("Y/m/d H:i");
+            $pdostmt->execute(["ds"=>$ds, "id"=>$id]);
         }
     } catch (\PDOException $e) {
         echo $e->getMessage();
