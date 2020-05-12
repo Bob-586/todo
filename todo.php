@@ -158,6 +158,9 @@ if ($action === "help") {
     echo "To update: update Item# \"Updated item info\"" . PHP_EOL;
     echo "To mark as complete: complete Item#" . PHP_EOL;
     echo "To mark as incomplete: incomplete Item#" . PHP_EOL;
+    echo "List Order: -desc or -latest" . PHP_EOL;
+    echo "List WHERE: -done or -not-done" . PHP_EOL;
+    echo "List Pagination: -page # -limit #" . PHP_EOL;
     exit(0);
 }
 
@@ -228,8 +231,35 @@ try {
 echo PHP_EOL;
 
 if ($action === "ls") {
+    $limit_no = 8;
+    $where = "";
+    $orderby = " ORDER BY id ASC";
+    $limiter = false;
+    $limit = "";
+    for($i = 1; $i < $argc; $i++) {
+        $opt = strtolower($argv[$i]);
+        if ($opt === "-done" || $opt === "-complete") {
+            $where = " WHERE completed='1' ";
+        }
+        if ($opt === "-not-done" || $opt === "-incomplete" || $opt === "-in-complete") {
+            $where = " WHERE completed='0' ";
+        }
+        if ($opt === "-latest" || $opt === "-desc") {
+            $orderby = " ORDER BY id DESC";
+        }
+        if ($opt === "-page") {
+            $limiter = true;
+            $page = (isset($argv[$i+1])) ? $argv[$i+1] : 1;
+        }
+        if ($opt === "-limit") {
+            $limit_no = (isset($argv[$i+1])) ? $argv[$i+1] : 8;
+        }
+    }
+    if ($limiter === true) {
+        $limit = " LIMIT " . ( ( $page - 1 ) * $limit_no ) . ", $limit_no";
+    }
     try {
-        $sql = "SELECT id, item, nonce, completed FROM items ORDER BY id ASC";
+        $sql = "SELECT id, item, nonce, completed FROM items {$where}{$orderby}{$limit}";
         $pdostmt = $pdo->prepare($sql);
         if ($pdostmt === false) {
            echo "INVALID Schema!";
