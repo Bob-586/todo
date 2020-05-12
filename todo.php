@@ -238,6 +238,7 @@ try {
 
 if ($action === "ls") {
     $limit_no = 8;
+    $page = 1;
     $where = "";
     $orderby = " ORDER BY id ASC";
     $limiter = false;
@@ -258,6 +259,7 @@ if ($action === "ls") {
             $page = (isset($argv[$i+1])) ? $argv[$i+1] : 1;
         }
         if ($opt === "-limit") {
+            $limiter = true;
             $limit_no = (isset($argv[$i+1])) ? $argv[$i+1] : 8;
         }
     }
