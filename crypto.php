@@ -15,12 +15,8 @@ class crypto {
    * @param string $nonce Nonce to crypt string
    * @return void
    */
-  public function __construct($nonce = '') {
-    if (is_array($nonce)) {
-      $this->nonce = $this->generateNonce();
-    } else {
-      $this->nonce = !empty($nonce) ? base64_decode($nonce) : $this->generateNonce();
-    }
+  public function __construct(string $nonce = '') {
+    $this->nonce = !empty($nonce) ? base64_decode($nonce) : $this->generateNonce();
   }
 
   /**

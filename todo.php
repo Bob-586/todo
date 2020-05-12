@@ -57,7 +57,8 @@ try {
 try {
     $sql = "CREATE TABLE IF NOT EXISTS items (
             id   INTEGER PRIMARY KEY AUTOINCREMENT,
-            item TEXT    NOT NULL,
+            item  TEXT    NOT NULL,
+            nonce TEXT    NULL,    
             completed INTEGER
       );";
     $pdo->query($sql);
@@ -137,7 +138,7 @@ if ($action === "help") {
 
 try {
     require 'crypto.php';
-    $c = new \todo\encryption\crypto("Lx/fyXT7z5GNCzfwxJVkJ8cGAtK750GJ");
+    $c = new \todo\encryption\crypto();
 
     $sql = "SELECT COUNT(id) AS c FROM password";
     $pdostmt = $pdo->prepare($sql);
@@ -147,20 +148,20 @@ try {
        echo "Create a password: ";
        $pwd = rtrim( shell_exec("/bin/bash -c 'read -s PW; echo \$PW'") );
        if (empty($pwd)) {
-         $sql = "INSERT INTO password (myhash, mykey) VALUES ('none', :key)";
+         $sql = "INSERT INTO password (myhash, mykey) VALUES ('none', '')";
          $pdostmt = $pdo->prepare($sql);
          if (! $pdostmt === false) {
-            $key = $c->getKey();
-            $pdostmt->execute(["key"=>$key]);
+            $pdostmt->execute();
          }
          $do_encode = false;
        } else {
          $sql = "INSERT INTO password (myhash, mykey) VALUES (:hash, :key)";
          $pdostmt = $pdo->prepare($sql);
          if (! $pdostmt === false) {
-            $pass_hash = password_hash($pwd, PASSWORD_BCRYPT); 
+            $myhash = password_hash($pwd, PASSWORD_BCRYPT);
             $key = $c->getKey();
-            $pdostmt->execute(["hash"=>$pass_hash, "key"=>$key]);
+            $ekey = openssl_encrypt($key, "AES-128-ECB", $pwd);
+            $pdostmt->execute(["hash"=>$myhash, "key"=>$ekey]);
          }
          $do_encode = true;
        }
@@ -170,7 +171,6 @@ try {
         $pdostmt->execute();
         $row = $pdostmt->fetch(\PDO::FETCH_ASSOC);
         $myhash = $row['myhash'];
-        $key = $row['mykey'];
         if ($myhash === "none") {
             $do_encode = false;
         } else {
@@ -181,6 +181,7 @@ try {
                 echo "Invalid Password!" . PHP_EOL;
                 exit(1);
             }
+            $key = openssl_decrypt($row['mykey'], "AES-128-ECB", $pwd);
         }
     }
 } catch (\Exception $ex) {
@@ -195,13 +196,22 @@ echo PHP_EOL;
 
 if ($action === "ls") {
     try {
-        $sql = "SELECT id, item, completed FROM items ORDER BY id ASC";
+        $sql = "SELECT id, item, nonce, completed FROM items ORDER BY id ASC";
         $pdostmt = $pdo->prepare($sql);
+        if ($pdostmt === false) {
+           echo "INVALID Schema!";
+           exit(1);
+        }
         $pdostmt->execute();
         $rows = $pdostmt->fetchAll(PDO::FETCH_ASSOC);
         foreach($rows as $row) {
             $done = ($row['completed'] == 1) ? "Complete" : "Incomplete";
-            $item = ($do_encode) ? $c->decode($key, $row['item']) : $row['item'];
+            if ($do_encode) {
+                $c->setNonce($row['nonce']);
+                $item = $c->decode($key, $row['item']);
+            } else {
+                $item = $row['item'];
+            }
             echo "[{$row['id']}] {$done} - $item" . PHP_EOL;
         }
     } catch (\PDOException $e) {
@@ -213,11 +223,17 @@ if ($action === "ls") {
 
 if ($action === "add") {
     try {
-        $sql = "INSERT INTO items (item, completed) VALUES (:item, :completed)";
+        $sql = "INSERT INTO items (item, nonce, completed) VALUES (:item, :nonce, :completed)";
         $pdostmt = $pdo->prepare($sql);
         if (! $pdostmt === false) {
-            $enc_item = ($do_encode) ? $c->encode($key, $item) : $item;
-            $pdostmt->execute(["item"=>$enc_item, "completed"=>$status]);
+            if ($do_encode) {
+                $nonce = $c->getNonce();
+                $enc_item = $c->encode($key, $item);
+            } else {
+                $nonce = "";
+                $enc_item = $item;
+            }
+            $pdostmt->execute(["item"=>$enc_item, "nonce"=>$nonce, "completed"=>$status]);
         }
     } catch (\Exception $ex) {
         echo $ex->getMessage();
@@ -246,11 +262,17 @@ if ($action === "rm") {
 
 if ($action === "update") {
     try {
-        $sql = "UPDATE items SET item=:item WHERE id=:id LIMIT 1";
+        $sql = "UPDATE items SET item=:item, nonce=:nonce WHERE id=:id LIMIT 1";
         $pdostmt = $pdo->prepare($sql);
         if (! $pdostmt === false) {
-            $enc_item =  ($do_encode) ? $c->encode($key, $item) : $item;
-            $pdostmt->execute(["item"=>$enc_item, "id"=>$id]);
+            if ($do_encode) {
+                $nonce = $c->getNonce();
+                $enc_item = $c->encode($key, $item);
+            } else {
+                $nonce = "";
+                $enc_item = $item;
+            }
+            $pdostmt->execute(["item"=>$enc_item, "nonce"=>$nonce, "id"=>$id]);
         }
     } catch (\PDOException $e) {
         echo $e->getMessage();
