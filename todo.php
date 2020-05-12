@@ -1,6 +1,11 @@
 #!/usr/bin/php -q
 <?php
 
+/**
+ * @author Robert Strutts
+ * @copyright (c) 2020, Robert Strutts
+ */
+
 function is_cli() {
     if (defined('STDIN')) {
         return true;
