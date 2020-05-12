@@ -39,6 +39,18 @@ if (is_cli() === false) {
 }
 
 function home_dir(): string {
+    for($i = 1; $i < $GLOBALS['argc']; $i++) {
+        $opt = strtolower($GLOBALS['argv'][$i]);
+        if ($opt === "-global" || $opt === "-g") {
+            return __DIR__;
+        }
+        if ($opt === "-dir") {
+            $dir = (isset($GLOBALS['argv'][$i+1])) ? $GLOBALS['argv'][$i+1] : "";
+            if (!empty($dir)) {
+                return $dir;
+            }
+        }
+    }
     if (isset($_SERVER['HOME'])) {
         $result = $_SERVER['HOME'];
     } else {
@@ -126,7 +138,7 @@ function get_id($id) {
 
 switch(strtolower($command)) {
    case "help": case "?": case "-?": case "-help": $action = "help"; break; 
-   case "add": 
+   case "add": case "new":
        $action = "add";
        $item = $A;
        $status = get_status($B);
@@ -162,6 +174,8 @@ if ($action === "help") {
     echo "List WHERE: -done or -not-done" . PHP_EOL;
     echo "List Pagination: -page # -limit #" . PHP_EOL;
     echo "Use Password: -p mypassword" . PHP_EOL;
+    echo "Use alt folder: -dir full_path" . PHP_EOL;
+    echo "Use global folder: -g or -global" . PHP_EOL;
     exit(0);
 }
 
