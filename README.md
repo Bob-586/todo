@@ -11,4 +11,4 @@ Useage: todo add "Stuff left...."
 
 Useage: todo
 
-Create an SQLite3 file in ~/.todo/todo.db
+Creates an SQLite3 file in ~/.todo/todo.db

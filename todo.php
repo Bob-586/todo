@@ -61,7 +61,19 @@ try {
             completed INTEGER
       );";
     $pdo->query($sql);
-} catch (PDOException $e) {
+} catch (\PDOException $e) {
+    echo $e->getMessage() . PHP_EOL;
+    exit(1);
+}
+
+try {
+    $sql = "CREATE TABLE IF NOT EXISTS password (
+            id   INTEGER PRIMARY KEY AUTOINCREMENT,
+            mykey  TEXT    NOT NULL,
+            myhash TEXT    NOT NULL
+      );";
+    $pdo->query($sql);
+} catch (\PDOException $e) {
     echo $e->getMessage() . PHP_EOL;
     exit(1);
 }
@@ -123,20 +135,78 @@ if ($action === "help") {
     exit(0);
 }
 
+try {
+    require 'crypto.php';
+    $c = new \todo\encryption\crypto("Lx/fyXT7z5GNCzfwxJVkJ8cGAtK750GJ");
+
+    $sql = "SELECT COUNT(id) AS c FROM password";
+    $pdostmt = $pdo->prepare($sql);
+    $pdostmt->execute();
+    $count = $pdostmt->fetch(PDO::FETCH_COLUMN);
+    if (intval($count) == 0) {
+       echo "Create a password: ";
+       $pwd = rtrim( shell_exec("/bin/bash -c 'read -s PW; echo \$PW'") );
+       if (empty($pwd)) {
+         $sql = "INSERT INTO password (myhash, mykey) VALUES ('none', :key)";
+         $pdostmt = $pdo->prepare($sql);
+         if (! $pdostmt === false) {
+            $key = $c->getKey();
+            $pdostmt->execute(["key"=>$key]);
+         }
+         $do_encode = false;
+       } else {
+         $sql = "INSERT INTO password (myhash, mykey) VALUES (:hash, :key)";
+         $pdostmt = $pdo->prepare($sql);
+         if (! $pdostmt === false) {
+            $pass_hash = password_hash($pwd, PASSWORD_BCRYPT); 
+            $key = $c->getKey();
+            $pdostmt->execute(["hash"=>$pass_hash, "key"=>$key]);
+         }
+         $do_encode = true;
+       }
+    } else {
+        $sql = "SELECT myhash, mykey FROM password WHERE id=1 LIMIT 1";
+        $pdostmt = $pdo->prepare($sql);
+        $pdostmt->execute();
+        $row = $pdostmt->fetch(\PDO::FETCH_ASSOC);
+        $myhash = $row['myhash'];
+        $key = $row['mykey'];
+        if ($myhash === "none") {
+            $do_encode = false;
+        } else {
+            $do_encode = true;
+            echo "Enter password: ";
+            $pwd = rtrim( shell_exec("/bin/bash -c 'read -s PW; echo \$PW'") );
+            if (! password_verify($pwd, $myhash)) {
+                echo "Invalid Password!" . PHP_EOL;
+                exit(1);
+            }
+        }
+    }
+} catch (\Exception $ex) {
+    echo $ex->getMessage();
+    exit(1);    
+} catch (\PDOException $e) {
+    echo $e->getMessage();
+    exit(1);
+}
+
+echo PHP_EOL;
+
 if ($action === "ls") {
     try {
         $sql = "SELECT id, item, completed FROM items ORDER BY id ASC";
         $pdostmt = $pdo->prepare($sql);
         $pdostmt->execute();
         $rows = $pdostmt->fetchAll(PDO::FETCH_ASSOC);
-        
         foreach($rows as $row) {
-            $done = ($row['completed'] == 1) ? "Complete" : "Incomplete"; 
-            echo "[{$row['id']}] {$done} - {$row['item']}" . PHP_EOL;
+            $done = ($row['completed'] == 1) ? "Complete" : "Incomplete";
+            $item = ($do_encode) ? $c->decode($key, $row['item']) : $row['item'];
+            echo "[{$row['id']}] {$done} - $item" . PHP_EOL;
         }
     } catch (\PDOException $e) {
         echo $e->getMessage();
-	exit(1);
+        exit(1);
     }
     exit(0);
 }
@@ -146,11 +216,15 @@ if ($action === "add") {
         $sql = "INSERT INTO items (item, completed) VALUES (:item, :completed)";
         $pdostmt = $pdo->prepare($sql);
         if (! $pdostmt === false) {
-            $pdostmt->execute(["item"=>$item, "completed"=>$status]);
+            $enc_item = ($do_encode) ? $c->encode($key, $item) : $item;
+            $pdostmt->execute(["item"=>$enc_item, "completed"=>$status]);
         }
+    } catch (\Exception $ex) {
+        echo $ex->getMessage();
+        exit(1);
     } catch (\PDOException $e) {
         echo $e->getMessage();
-	exit(1);
+        exit(1);
     }
     exit(0);    
 }
@@ -175,11 +249,12 @@ if ($action === "update") {
         $sql = "UPDATE items SET item=:item WHERE id=:id LIMIT 1";
         $pdostmt = $pdo->prepare($sql);
         if (! $pdostmt === false) {
-            $pdostmt->execute(["item"=>$item, "id"=>$id]);
+            $enc_item =  ($do_encode) ? $c->encode($key, $item) : $item;
+            $pdostmt->execute(["item"=>$enc_item, "id"=>$id]);
         }
-    } catch (PDOException $e) {
+    } catch (\PDOException $e) {
         echo $e->getMessage();
-	exit(1);
+        exit(1);
     }
     exit(0);    
 }
@@ -191,9 +266,9 @@ if ($action === "complete") {
         if (! $pdostmt === false) {
             $pdostmt->execute(["id"=>$id]);
         }
-    } catch (PDOException $e) {
+    } catch (\PDOException $e) {
         echo $e->getMessage();
-	exit(1);
+        exit(1);
     }
     exit(0);    
 }
@@ -205,9 +280,9 @@ if ($action === "incomplete") {
         if (! $pdostmt === false) {
             $pdostmt->execute(["id"=>$id]);
         }
-    } catch (PDOException $e) {
+    } catch (\PDOException $e) {
         echo $e->getMessage();
-	exit(1);
+        exit(1);
     }
     exit(0);    
 }
