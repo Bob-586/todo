@@ -146,7 +146,7 @@ switch(strtolower($command)) {
        $item = $A;
        $status = get_status($B);
        break;
-   case "remove": case "rm": 
+   case "remove": case "rm": case "del": case "delete":
        $action = "rm";
        $id = get_id($A);
        break;
@@ -409,11 +409,16 @@ if ($action === "update") {
 
 if ($action === "complete") {
     try {
-        $sql = "UPDATE items SET completed='1', date_stamp=:ds WHERE id=:id LIMIT 1";
+        $sql = "UPDATE items SET completed='1', user=:user, date_stamp=:ds WHERE id=:id LIMIT 1";
         $pdostmt = $pdo->prepare($sql);
         if (! $pdostmt === false) {
+            if (function_exists('exec')) {
+                $user = exec("whoami");
+            } else {
+                $user = "unknown";
+            }            
             $ds = gmdate("Y/m/d H:i");
-            $pdostmt->execute(["ds"=>$ds, "id"=>$id]);
+            $pdostmt->execute(["user"=>$user, "ds"=>$ds, "id"=>$id]);
         }
     } catch (\PDOException $e) {
         echo $e->getMessage();
@@ -424,11 +429,16 @@ if ($action === "complete") {
 
 if ($action === "incomplete") {
     try {
-        $sql = "UPDATE items SET completed='0', date_stamp=:ds WHERE id=:id LIMIT 1";
+        $sql = "UPDATE items SET completed='0', user=:user, date_stamp=:ds WHERE id=:id LIMIT 1";
         $pdostmt = $pdo->prepare($sql);
         if (! $pdostmt === false) {
+            if (function_exists('exec')) {
+                $user = exec("whoami");
+            } else {
+                $user = "unknown";
+            }            
             $ds = gmdate("Y/m/d H:i");
-            $pdostmt->execute(["ds"=>$ds, "id"=>$id]);
+            $pdostmt->execute(["user"=>$user, "ds"=>$ds, "id"=>$id]);
         }
     } catch (\PDOException $e) {
         echo $e->getMessage();
