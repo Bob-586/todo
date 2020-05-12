@@ -6,6 +6,9 @@
  * @copyright (c) 2020, Robert Strutts
  */
 
+$todo_file = "todo.db";
+$todo_dir = "/.todo";
+
 function is_cli() {
     if (defined('STDIN')) {
         return true;
@@ -35,14 +38,31 @@ if (is_cli() === false) {
     exit(1);
 }
 
-$todo_file = "todo.db";
-if (posix_getuid() > 0) {
-   //$u = getenv("USERNAME");
-   //$home_dir = "/home/{$u}/.todo";
-   $home_dir = $_SERVER['HOME'] . "/.todo";
-} else {
-   $home_dir = "/root/.todo";    
+function home_dir() {
+    if (isset($_SERVER['HOME'])) {
+        $result = $_SERVER['HOME'];
+    } else {
+        $result = getenv("HOME");
+    }
+    
+    if (empty($result) && !empty($_SERVER['HOMEDRIVE']) && !empty($_SERVER['HOMEPATH'])) {
+        $result = $_SERVER['HOMEDRIVE'] . $_SERVER['HOMEPATH'];
+    }
+    
+    if (empty($result) && function_exists('exec')) {
+        if(strncasecmp(PHP_OS, 'WIN', 3) === 0) {
+            $result = exec("echo %userprofile%");
+        } else {
+            $result = exec("echo ~");
+        }
+    }
+
+    $result = rtrim($result, '/');
+    $result = rtrim($result, '\\');
+    return $result;
 }
+
+$home_dir = home_dir() . $todo_dir;
 
 if (! is_dir($home_dir)) {
     $s = mkdir($home_dir);

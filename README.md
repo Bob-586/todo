@@ -1,7 +1,7 @@
 # todo
-PHP CLI - Linux Server - To Do - Lists
+PHP CLI - Linux/Windows Server - To Do - Lists
 
-#### Purpose: To encrypt things left, to do, on a Linux Server.
+#### Purpose: To encrypt things left, to do, on a Server.
 
 ** Each user, has their own password protected, to do, items! **
 
