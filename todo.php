@@ -9,7 +9,7 @@
 $todo_file = "todo.db";
 $todo_dir = "/.todo";
 
-function is_cli() {
+function is_cli(): bool {
     if (defined('STDIN')) {
         return true;
     }
@@ -38,7 +38,7 @@ if (is_cli() === false) {
     exit(1);
 }
 
-function home_dir() {
+function home_dir(): string {
     if (isset($_SERVER['HOME'])) {
         $result = $_SERVER['HOME'];
     } else {
@@ -108,7 +108,7 @@ $command = $argv[1] ?? "ls";
 $A = $argv[2] ?? "";
 $B = $argv[3] ?? "";
 
-function get_status($status) {
+function get_status(string $status): string {
     switch(strtolower($status)) {
         case "done": case "complete": $status = "1"; break;
         default: $status = "0"; break;    
@@ -161,15 +161,25 @@ if ($action === "help") {
     echo "List Order: -desc or -latest" . PHP_EOL;
     echo "List WHERE: -done or -not-done" . PHP_EOL;
     echo "List Pagination: -page # -limit #" . PHP_EOL;
+    echo "Use Password: -p mypassword" . PHP_EOL;
     exit(0);
 }
 
-function get_pwd() {
-    if(strncasecmp(PHP_OS, 'WIN', 3) === 0) {
-       return stream_get_line(STDIN, 1024, PHP_EOL); 
-    } else {
-       return rtrim( shell_exec("/bin/bash -c 'read -s PW; echo \$PW'") );
+function get_pwd(string $prompt = "Enter password: ") {
+    for($i = 1; $i < $GLOBALS['argc']; $i++) {
+        $opt = strtolower($GLOBALS['argv'][$i]);
+        if ($opt === "-p" || $opt === "-pass" || $opt === "-password" || $opt === "-pwd") {
+           return (isset($GLOBALS['argv'][$i+1])) ? $GLOBALS['argv'][$i+1] : ""; 
+        }
     }
+    echo $prompt;
+    if(strncasecmp(PHP_OS, 'WIN', 3) === 0) {
+       $ret =  stream_get_line(STDIN, 1024, PHP_EOL); 
+    } else {
+       $ret = rtrim( shell_exec("/bin/bash -c 'read -s PW; echo \$PW'") );
+    }
+    echo PHP_EOL;
+    return $ret;
 }
 
 try {
@@ -181,8 +191,7 @@ try {
     $pdostmt->execute();
     $count = $pdostmt->fetch(PDO::FETCH_COLUMN);
     if (intval($count) == 0) {
-       echo "Create a password: ";
-       $pwd = get_pwd();
+       $pwd = get_pwd("Create a password: ");
        if (empty($pwd)) {
          $sql = "INSERT INTO password (myhash, mykey) VALUES ('none', '')";
          $pdostmt = $pdo->prepare($sql);
@@ -211,7 +220,6 @@ try {
             $do_encode = false;
         } else {
             $do_encode = true;
-            echo "Enter password: ";
             $pwd = get_pwd();
             if (! password_verify($pwd, $myhash)) {
                 echo "Invalid Password!" . PHP_EOL;
@@ -227,8 +235,6 @@ try {
     echo $e->getMessage();
     exit(1);
 }
-
-echo PHP_EOL;
 
 if ($action === "ls") {
     $limit_no = 8;
