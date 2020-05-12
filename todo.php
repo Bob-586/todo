@@ -56,7 +56,7 @@ function home_dir(): string {
             $result = exec("echo ~");
         }
     }
-
+    $result = str_replace('..', '', $result);
     $result = rtrim($result, '/');
     $result = rtrim($result, '\\');
     return $result;
@@ -125,7 +125,7 @@ function get_id($id) {
 }
 
 switch(strtolower($command)) {
-   case "help": case "?": $action = "help"; break; 
+   case "help": case "?": case "-?": case "-help": $action = "help"; break; 
    case "add": 
        $action = "add";
        $item = $A;
